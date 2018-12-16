@@ -1,7 +1,6 @@
 import requests
 from bs4 import BeautifulSoup
-import numpy as np
-import pandas as pd
+import json
 
 
 def get_zipcodes():
@@ -21,7 +20,17 @@ def get_zipcodes():
             else:
                 zipcodes.append(zipcode)
 
-    return(zipcodes)
+    return zipcodes
+
+
+def get_streetnames(zipcode):
+    url = "https://www.boliga.dk/services/OIS.asmx/GetStreetNamesDK?zip=" + zipcode
+    page = requests.get(url)
+    street_info = json.loads(page.json())['streets']
+    street_names = [street['name'] for street in street_info]
+
+    return street_names
 
 
 zipcodes = get_zipcodes()
+streetnames = get_streetnames("8660")
