@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import requests
 import time
+import sys
 import pandas as pd
 import database_functions as dbf
 
@@ -41,7 +42,7 @@ def scrape_data():
                   'city']
     house_price_data = pd.DataFrame(columns=columns_to_use)
 
-    n_subpages = 27508
+    n_subpages = 27507
     for subpage_number in range(n_subpages):
         url = 'https://api.boliga.dk/api/v2/sold/search/results?page={}&sort=date-d'.format(subpage_number + 1)
         r = requests.get(url)
@@ -49,6 +50,8 @@ def scrape_data():
         temp_df = pd.DataFrame(json_object['results'])
         temp_df_subset = temp_df[columns_to_use]
         house_price_data = house_price_data.append(temp_df_subset, ignore_index=True, sort=False)
+        sys.stdout.write('{} of {}\r'.format(subpage_number + 1, n_subpages))
+        sys.stdout.flush()
         time.sleep(1)
 
     house_price_data.columns = house_price_columns
