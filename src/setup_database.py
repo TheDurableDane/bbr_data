@@ -1,24 +1,8 @@
+#!/usr/bin/env python
 import sqlite3
+import database_functions as dbf
 
 
-def connect_to_database(path):
-    connection = sqlite3.connect(path)
-    cursor = connection.cursor()
-
-    return connection, cursor
-
-
-def disconnect_from_database(connection):
-    connection.commit()
-    connection.close()
-
-
-def execute_database_query(database_path, query):
-    connection, cursor = connect_to_database(database_path)
-    cursor.execute(query)
-    disconnect_from_database(connection)
-
-    
 def initialize_database_table(database_path):
     table_name = 'house_price_data'
     query = 'CREATE TABLE {} (id INTEGER PRIMARY KEY AUTOINCREMENT,\
@@ -39,7 +23,7 @@ def initialize_database_table(database_path):
                               estate_code INTEGER,\
                               city TEXT,\
                               UNIQUE(address, zip_code, sold_date));'.format(table_name)
-    execute_database_query(database_path, query)
+    dbf.execute_database_query(database_path, query)
 
 
 if __name__ == '__main__':
