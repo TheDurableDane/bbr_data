@@ -40,5 +40,6 @@ def select_from_database(database_path, query):
 def read_house_price_data(database_path):
     query = 'SELECT * FROM house_price_data;'
     house_price_data = select_from_database(database_path, query)
+    house_price_data['sold_date'] = pd.to_datetime(house_price_data['sold_date'])
 
     return house_price_data

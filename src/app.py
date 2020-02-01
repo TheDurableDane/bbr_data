@@ -15,14 +15,25 @@ app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
 tab_histograms = dbc.Row([
     dbc.Col(width={"size": 2}, children=[
+        html.Br(),
         dcc.Dropdown(id='hist_data',
-            options=[
-                {'label': 'Price', 'value': 'price'},
-                {'label': 'Rooms', 'value': 'rooms'},
-                {'label': 'Residence size', 'value': 'residence_size'}
-            ],
-            value='price',
-            clearable=False
+                     options=[
+                         {'label': 'Price', 'value': 'price'},
+                         {'label': 'Rooms', 'value': 'rooms'},
+                         {'label': 'Residence size', 'value': 'residence_size'}
+                     ],
+                     value='price',
+                     clearable=False
+        ),
+        html.Br(),
+        html.P('Sold date'),
+        dcc.RangeSlider(id='hist_range_slider',
+                        min=1992,
+                        max=2020,
+                        step=1,
+                        value=[1992, 2020],
+                        tooltip={'always_visible':True, 'placement': 'bottom'},
+                        allowCross=False
         )
     ]),
     dbc.Col(width=10, children=[
@@ -71,10 +82,20 @@ app.layout = dbc.Row([
 
 
 @app.callback(
-    Output(component_id='histogram', component_property='figure'),
-    [Input(component_id='hist_data', component_property='value')])
-def update_histogram(histogram_dropdown_value):
-    fig = px.histogram(data, x=histogram_dropdown_value)
+    Output('histogram', 'figure'),
+    [Input('hist_data', 'value'),
+     Input('hist_range_slider', 'value')])
+def update_histogram(histogram_dropdown_value, histogram_range_slider_value):
+    slider_min = histogram_range_slider_value[0]
+    slider_max = histogram_range_slider_value[1]
+    data['year'] = data['sold_date'].dt.year
+    data_to_plot = data.query(f'{slider_min} <= year <= {slider_max}')
+    xlabel = ' '.join(histogram_dropdown_value.split('_')).title()
+
+    fig = px.histogram(data_to_plot, x=histogram_dropdown_value)
+    fig.update_layout(
+        xaxis_title=xlabel,
+        yaxis_title='')
 
     return fig
 
