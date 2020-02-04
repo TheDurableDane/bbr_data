@@ -4,7 +4,10 @@ import dash_bootstrap_components as dbc
 import dash_core_components as dcc
 import dash_html_components as html
 from dash.dependencies import Input, Output
+
 import plotly.express as px
+import plotly.graph_objects as go
+
 import database_functions as dbf
 
 
@@ -115,11 +118,27 @@ def update_histogram(hist_dropdown, hist_range_slider, hist_checklist):
     slider_query = f'{slider_min} <= year <= {slider_max}'
     data_to_plot = data_to_plot.query(slider_query)
 
+    data_median = data_to_plot.loc[:, hist_dropdown].median()
+
     fig = px.histogram(data_to_plot, x=hist_dropdown)
+    fig.add_shape(
+        go.layout.Shape(
+            type='line',
+            xref='x',
+            yref='paper',
+            x0=data_median,
+            y0=0,
+            x1=data_median,
+            y1=1,
+            line=dict(color='red', width=2)
+        )
+    )
+
     xlabel = ' '.join(hist_dropdown.split('_')).title()
     fig.update_layout(
         xaxis_title=xlabel,
-        yaxis_title='Count')
+        yaxis_title='Count',
+        showlegend=True)
 
     return fig
 
