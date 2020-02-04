@@ -16,7 +16,7 @@ app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 tab_histograms = dbc.Row([
     dbc.Col(width={"size": 2}, children=[
         html.Br(),
-        dcc.Dropdown(id='hist_data',
+        dcc.Dropdown(id='hist_dropdown',
                      options=[
                          {'label': 'Price', 'value': 'price'},
                          {'label': 'Rooms', 'value': 'rooms'},
@@ -34,7 +34,17 @@ tab_histograms = dbc.Row([
                         value=[1992, 2020],
                         tooltip={'always_visible':True, 'placement': 'bottom'},
                         allowCross=False
-        )
+        ),
+        html.Br(),
+        html.Br(),
+        dcc.Checklist(id='hist_checklist',
+            options=[
+                {'label': 'Jylland', 'value': 'jylland'},
+                {'label': 'Fyn', 'value': 'fyn'},
+                {'label': 'Sjælland', 'value': 'sjaelland'}
+            ],
+            value=['jylland', 'fyn', 'sjaelland'],
+            labelStyle={'display': 'block'})
     ]),
     dbc.Col(width=10, children=[
         dcc.Graph(id='histogram')
@@ -83,19 +93,33 @@ app.layout = dbc.Row([
 
 @app.callback(
     Output('histogram', 'figure'),
-    [Input('hist_data', 'value'),
-     Input('hist_range_slider', 'value')])
-def update_histogram(histogram_dropdown_value, histogram_range_slider_value):
-    slider_min = histogram_range_slider_value[0]
-    slider_max = histogram_range_slider_value[1]
-    data['year'] = data['sold_date'].dt.year
-    data_to_plot = data.query(f'{slider_min} <= year <= {slider_max}')
-    xlabel = ' '.join(histogram_dropdown_value.split('_')).title()
+    [Input('hist_dropdown', 'value'),
+     Input('hist_range_slider', 'value'),
+     Input('hist_checklist', 'value')])
+def update_histogram(hist_dropdown, hist_range_slider, hist_checklist):
+    slider_min = hist_range_slider[0]
+    slider_max = hist_range_slider[1]
 
-    fig = px.histogram(data_to_plot, x=histogram_dropdown_value)
+    data_to_plot = data.copy()
+    if 'sjaelland' not in hist_checklist:
+        checklist_query = 'zip_code > 4999'
+        data_to_plot = data_to_plot.query(checklist_query)
+    if 'fyn' not in hist_checklist:
+        checklist_query = 'zip_code < 5000 or zip_code > 5999'
+        data_to_plot = data_to_plot.query(checklist_query)
+    if 'jylland' not in hist_checklist:
+        checklist_query = 'zip_code < 6000'
+        data_to_plot = data_to_plot.query(checklist_query)
+
+    data_to_plot['year'] = data['sold_date'].dt.year
+    slider_query = f'{slider_min} <= year <= {slider_max}'
+    data_to_plot = data_to_plot.query(slider_query)
+
+    fig = px.histogram(data_to_plot, x=hist_dropdown)
+    xlabel = ' '.join(hist_dropdown.split('_')).title()
     fig.update_layout(
         xaxis_title=xlabel,
-        yaxis_title='')
+        yaxis_title='Count')
 
     return fig
 
