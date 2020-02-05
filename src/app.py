@@ -57,11 +57,6 @@ tab_histograms = dbc.Row([
 
 tab_geography = dbc.Row([
     dbc.Col(width={"size": 2, "offset": 3}, children=[
-        dbc.DropdownMenu(label='ddm', children=[
-            dbc.DropdownMenuItem('item1'),
-            dbc.DropdownMenuItem('item2'),
-            dbc.DropdownMenuItem('item3')
-        ])
     ]),
     dbc.Col(width=4, children=[
         html.P('Graphs and content.')
@@ -70,15 +65,20 @@ tab_geography = dbc.Row([
 
 
 tab_timeseries = dbc.Row([
-    dbc.Col(width={"size": 2, "offset": 3}, children=[
-        dbc.DropdownMenu(label='ddm', children=[
-            dbc.DropdownMenuItem('item1'),
-            dbc.DropdownMenuItem('item2'),
-            dbc.DropdownMenuItem('item3')
-        ])
+    dbc.Col(width={'size': 2}, children=[
+        html.Br(),
+        dcc.Dropdown(id='timeseries_dropdown',
+                     options=[
+                         {'label': 'Price', 'value': 'price'},
+                         {'label': 'Rooms', 'value': 'rooms'},
+                         {'label': 'Residence size', 'value': 'residence_size'}
+                     ],
+                     value='price',
+                     clearable=False
+        ),
     ]),
-    dbc.Col(width=4, children=[
-        html.P('Graphs and content.')
+    dbc.Col(width=10, children=[
+        dcc.Graph(id='timeseries')
     ])
 ])
 
@@ -139,6 +139,20 @@ def update_histogram(hist_dropdown, hist_range_slider, hist_checklist):
         xaxis_title=xlabel,
         yaxis_title='Count',
         showlegend=True)
+
+    return fig
+
+
+@app.callback(
+    Output('timeseries', 'figure'),
+    [Input('timeseries_dropdown', 'value')])
+def update_timeseries(timeseries_dropdown):
+    data_to_plot = data.copy()
+    data_to_plot['year'] = data_to_plot['sold_date'].dt.year
+    data_to_plot = data_to_plot.query('year >= 1992')
+    data_to_plot = data_to_plot.groupby('year')[timeseries_dropdown].median().reset_index()
+
+    fig = px.line(data_to_plot, x='year', y=timeseries_dropdown)
 
     return fig
 
