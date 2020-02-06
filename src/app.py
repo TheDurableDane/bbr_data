@@ -17,7 +17,7 @@ app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
 
 tab_histograms = dbc.Row([
-    dbc.Col(width={"size": 2}, children=[
+    dbc.Col(width={'size': 2}, children=[
         html.Br(),
         dcc.Dropdown(id='hist_dropdown',
                      options=[
@@ -56,9 +56,9 @@ tab_histograms = dbc.Row([
 
 
 tab_geography = dbc.Row([
-    dbc.Col(width={"size": 2, "offset": 3}, children=[
+    dbc.Col(width={'size': 2}, children=[
     ]),
-    dbc.Col(width=4, children=[
+    dbc.Col(width=10, children=[
         html.P('Graphs and content.')
     ])
 ])
@@ -66,6 +66,15 @@ tab_geography = dbc.Row([
 
 tab_timeseries = dbc.Row([
     dbc.Col(width={'size': 2}, children=[
+        html.Br(),
+        dcc.Dropdown(id='timeseries_dropdown_calc',
+                     options=[
+                         {'label': 'Mean', 'value': 'mean'},
+                         {'label': 'Median', 'value': 'median'}
+                     ],
+                     value='mean',
+                     clearable=False
+        ),
         html.Br(),
         dcc.Dropdown(id='timeseries_dropdown',
                      options=[
@@ -76,8 +85,9 @@ tab_timeseries = dbc.Row([
                      value='price',
                      clearable=False
         ),
+        html.Br(),
     ]),
-    dbc.Col(width=10, children=[
+    dbc.Col(width=10 , children=[
         dcc.Graph(id='timeseries')
     ])
 ])
@@ -88,7 +98,7 @@ app.layout = dbc.Row([
         dbc.Tabs([
             dbc.Tab(label='Histograms', children=tab_histograms),
             dbc.Tab(label='Geography', children=tab_geography),
-            dbc.Tab(label='Time series', children=tab_timeseries)
+            dbc.Tab(label='Time series', children=tab_timeseries),
         ])
     ])
 ])
@@ -145,14 +155,23 @@ def update_histogram(hist_dropdown, hist_range_slider, hist_checklist):
 
 @app.callback(
     Output('timeseries', 'figure'),
-    [Input('timeseries_dropdown', 'value')])
-def update_timeseries(timeseries_dropdown):
+    [Input('timeseries_dropdown', 'value'),
+     Input('timeseries_dropdown_calc', 'value')])
+def update_timeseries(timeseries_dropdown, timeseries_dropdown_calc):
     data_to_plot = data.copy()
     data_to_plot['year'] = data_to_plot['sold_date'].dt.year
     data_to_plot = data_to_plot.query('year >= 1992')
-    data_to_plot = data_to_plot.groupby('year')[timeseries_dropdown].median().reset_index()
+    if timeseries_dropdown_calc == 'mean':
+        data_to_plot = data_to_plot.groupby('year')[timeseries_dropdown].mean().reset_index()
+    elif timeseries_dropdown_calc == 'median':
+        data_to_plot = data_to_plot.groupby('year')[timeseries_dropdown].median().reset_index()
 
     fig = px.line(data_to_plot, x='year', y=timeseries_dropdown)
+
+    ylabel = ' '.join(timeseries_dropdown.split('_')).title()
+    fig.update_layout(
+        xaxis_title='Year',
+        yaxis_title=ylabel,)
 
     return fig
 
