@@ -92,7 +92,7 @@ tab_timeseries = dbc.Row([
                        options=[
                            {'label': 'None', 'value': 'none'},
                            {'label': 'Zip code', 'value': 'zip_code'},
-                           {'label': 'Jylland/Fyn/Sjælland', 'value': 'jfs'}
+                           {'label': 'Region', 'value': 'jfs'}
                        ],
                        value='zip_code',
                        labelStyle={'display': 'block'})
@@ -158,7 +158,7 @@ def update_histogram(hist_dropdown, hist_range_slider, hist_checklist):
     fig.update_layout(
         xaxis_title=xlabel,
         yaxis_title='Count',
-        showlegend=True)
+        template='simple_white')
 
     return fig
 
@@ -215,7 +215,8 @@ def update_timeseries(timeseries_dropdown, timeseries_dropdown_calc, timeseries_
     ylabel = ' '.join(timeseries_dropdown.split('_')).title()
     fig.update_layout(
         xaxis_title='Year',
-        yaxis_title=ylabel,)
+        yaxis_title=ylabel,
+        template='simple_white')
 
     return fig
 
