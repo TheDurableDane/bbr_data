@@ -189,7 +189,8 @@ def update_histogram(hist_dropdown, hist_range_slider, hist_checklist):
     fig.update_layout(
         xaxis_title=xlabel,
         yaxis_title='Count',
-        template='simple_white')
+        template='simple_white',
+        uirevision=hist_dropdown)
 
     return fig
 
@@ -243,7 +244,8 @@ def update_timeseries(timeseries_dropdown, timeseries_dropdown_calc, timeseries_
 
     fig.update_layout(
         xaxis_title='Year',
-        template='simple_white')
+        template='simple_white',
+        uirevision=timeseries_dropdown)
 
     return fig
 
