@@ -7,12 +7,43 @@ from dash.dependencies import Input, Output
 
 import plotly.express as px
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
 import numpy as np
 import database_functions as dbf
 
 
 data = dbf.read_house_price_data('../data/bbr.db')
+
+
+def prepare_data(data):
+    data['year'] = data['sold_date'].dt.year
+    data = data.query('year >= 1992')
+
+    conditions = [
+        ((data['zip_code'].values >= 1000) & (data['zip_code'].values < 2000)),
+        ((data['zip_code'].values >= 2000) & (data['zip_code'].values < 3000)),
+        ((data['zip_code'].values >= 3000) & (data['zip_code'].values < 4000)),
+        ((data['zip_code'].values >= 4000) & (data['zip_code'].values < 5000)),
+        ((data['zip_code'].values >= 5000) & (data['zip_code'].values < 6000)),
+        ((data['zip_code'].values >= 6000) & (data['zip_code'].values < 7000)),
+        ((data['zip_code'].values >= 7000) & (data['zip_code'].values < 8000)),
+        ((data['zip_code'].values >= 8000) & (data['zip_code'].values < 9000)),
+        ((data['zip_code'].values >= 9000) & (data['zip_code'].values < 10000)),
+    ]
+    categories = ['1000-1999', '2000-2999', '3000-3999', '4000-4999', '5000-5999', '6000-6999', '7000-7999', '8000-8999', '9000-9999']
+    data['zip_code_group'] = np.select(conditions, categories, default='Unknown')
+
+    conditions = [
+        ((data['zip_code'].values >= 1000) & (data['zip_code'].values < 5000)),
+        ((data['zip_code'].values >= 5000) & (data['zip_code'].values < 6000)),
+        ((data['zip_code'].values >= 6000) & (data['zip_code'].values < 10000)),
+    ]
+    categories = ['Sjælland', 'Fyn', 'Jylland']
+    data['region'] = np.select(conditions, categories, default='Unknown')
+
+    return data
+
 
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
@@ -91,10 +122,10 @@ tab_timeseries = dbc.Row([
         dcc.RadioItems(id='timeseries_split_by',
                        options=[
                            {'label': 'None', 'value': 'none'},
-                           {'label': 'Zip code', 'value': 'zip_code'},
-                           {'label': 'Region', 'value': 'jfs'}
+                           {'label': 'Zip code', 'value': 'zip_code_group'},
+                           {'label': 'Region', 'value': 'region'}
                        ],
-                       value='zip_code',
+                       value='none',
                        labelStyle={'display': 'block'})
     ]),
     dbc.Col(width=10 , children=[
@@ -106,9 +137,9 @@ tab_timeseries = dbc.Row([
 app.layout = dbc.Row([
     dbc.Col(width={'size': 6, 'offset': 3}, children=[
         dbc.Tabs([
+            dbc.Tab(label='Time series', children=tab_timeseries),
             dbc.Tab(label='Histograms', children=tab_histograms),
             dbc.Tab(label='Geography', children=tab_geography),
-            dbc.Tab(label='Time series', children=tab_timeseries),
         ])
     ])
 ])
@@ -169,53 +200,49 @@ def update_histogram(hist_dropdown, hist_range_slider, hist_checklist):
      Input('timeseries_dropdown_calc', 'value'),
      Input('timeseries_split_by', 'value')])
 def update_timeseries(timeseries_dropdown, timeseries_dropdown_calc, timeseries_split_by):
-    data_to_plot = data.copy()
-    data_to_plot['year'] = data_to_plot['sold_date'].dt.year
-    data_to_plot = data_to_plot.query('year >= 1992')
-
-    if timeseries_split_by == 'zip_code':
-        conditions = [
-            ((data_to_plot['zip_code'].values >= 1000) & (data_to_plot['zip_code'].values < 2000)),
-            ((data_to_plot['zip_code'].values >= 2000) & (data_to_plot['zip_code'].values < 3000)),
-            ((data_to_plot['zip_code'].values >= 3000) & (data_to_plot['zip_code'].values < 4000)),
-            ((data_to_plot['zip_code'].values >= 4000) & (data_to_plot['zip_code'].values < 5000)),
-            ((data_to_plot['zip_code'].values >= 5000) & (data_to_plot['zip_code'].values < 6000)),
-            ((data_to_plot['zip_code'].values >= 6000) & (data_to_plot['zip_code'].values < 7000)),
-            ((data_to_plot['zip_code'].values >= 7000) & (data_to_plot['zip_code'].values < 8000)),
-            ((data_to_plot['zip_code'].values >= 8000) & (data_to_plot['zip_code'].values < 9000)),
-            ((data_to_plot['zip_code'].values >= 9000) & (data_to_plot['zip_code'].values < 10000)),
-        ]
-        categories = ['1000-1999', '2000-2999', '3000-3999', '4000-4999', '5000-5999', '6000-6999', '7000-7999', '8000-8999', '9000-9999']
-        data_to_plot['split_by'] = np.select(conditions, categories, default='Unknown')
-    elif timeseries_split_by == 'jfs':
-        conditions = [
-            ((data_to_plot['zip_code'].values >= 1000) & (data_to_plot['zip_code'].values < 5000)),
-            ((data_to_plot['zip_code'].values >= 5000) & (data_to_plot['zip_code'].values < 6000)),
-            ((data_to_plot['zip_code'].values >= 6000) & (data_to_plot['zip_code'].values < 10000)),
-        ]
-        categories = ['Sjælland', 'Fyn', 'Jylland']
-        data_to_plot['split_by'] = np.select(conditions, categories, default='Unknown')
+    data_to_plot = prepare_data(data)
+    ylabel = ' '.join(timeseries_dropdown.split('_')).title()
 
     if timeseries_split_by == 'none':
+        n_sales_per_year = data_to_plot.groupby('year').size().reset_index(name='count')
+
         if timeseries_dropdown_calc == 'mean':
             data_to_plot = data_to_plot.groupby('year')[timeseries_dropdown].mean().reset_index()
         elif timeseries_dropdown_calc == 'median':
             data_to_plot = data_to_plot.groupby('year')[timeseries_dropdown].median().reset_index()
 
-        fig = px.line(data_to_plot, x='year', y=timeseries_dropdown)
+        line_color = '#d62728'
+        line_plot = go.Scatter(x=data_to_plot['year'], y=data_to_plot[timeseries_dropdown], yaxis='y2', line_color=line_color)
+        bar_color = '#1f77b4'
+        sales_per_year_plot = go.Bar(x=n_sales_per_year['year'], y=n_sales_per_year['count'], marker_color=bar_color)
+        fig = go.Figure(data=[sales_per_year_plot, line_plot],
+                        layout=go.Layout(
+                             yaxis=dict(
+                                 title='Number of sales',
+                                 side='right',
+                                 color=bar_color
+                             ),
+                             yaxis2=dict(
+                                 title=ylabel,
+                                 overlaying='y',
+                                 side='left',
+                                 color=line_color
+                             )
+                         )
+        )
+        fig.update_layout(showlegend=False)
+
     else:
         if timeseries_dropdown_calc == 'mean':
-            data_to_plot = data_to_plot.groupby(['year', 'split_by'])[timeseries_dropdown].mean().reset_index()
+            data_to_plot = data_to_plot.groupby(['year', timeseries_split_by])[timeseries_dropdown].mean().reset_index()
         elif timeseries_dropdown_calc == 'median':
-            data_to_plot = data_to_plot.groupby(['year', 'split_by'])[timeseries_dropdown].median().reset_index()
+            data_to_plot = data_to_plot.groupby(['year', timeseries_split_by])[timeseries_dropdown].median().reset_index()
 
-        fig = px.line(data_to_plot, x='year', y=timeseries_dropdown, color='split_by')\
-                .for_each_trace(lambda t: t.update(name=t.name.replace('split_by=','')))
+        fig = px.line(data_to_plot, x='year', y=timeseries_dropdown, color=timeseries_split_by)\
+                .for_each_trace(lambda t: t.update(name=t.name.replace(timeseries_split_by + '=','')))
 
-    ylabel = ' '.join(timeseries_dropdown.split('_')).title()
     fig.update_layout(
         xaxis_title='Year',
-        yaxis_title=ylabel,
         template='simple_white')
 
     return fig
