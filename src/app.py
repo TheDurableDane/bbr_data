@@ -7,7 +7,6 @@ from dash.dependencies import Input, Output
 
 import plotly.express as px
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 
 import numpy as np
 import database_functions as dbf
@@ -18,6 +17,10 @@ data = dbf.read_house_price_data('../data/bbr.db')
 
 def prepare_data(data):
     data['year'] = data['sold_date'].dt.year
+    data['quarter'] = data['sold_date'].dt.quarter
+    data['quarter'] = data['year'] + data['quarter']/10*2.5
+    data['month'] = data['sold_date'].dt.month
+    data['month'] = data['year'] + data['month']/10/1.2
     data = data.query('year >= 1992')
 
     conditions = [
@@ -67,7 +70,7 @@ tab_histograms = dbc.Row([
                         max=2020,
                         step=1,
                         value=[1992, 2020],
-                        tooltip={'always_visible':True, 'placement': 'bottom'},
+                        tooltip={'always_visible': True, 'placement': 'bottom'},
                         allowCross=False
         ),
         html.Br(),
@@ -105,8 +108,7 @@ tab_timeseries = dbc.Row([
                          {'label': 'Median', 'value': 'median'}
                      ],
                      value='mean',
-                     clearable=False
-        ),
+                     clearable=False),
         html.Br(),
         dcc.Dropdown(id='timeseries_dropdown',
                      options=[
@@ -115,8 +117,7 @@ tab_timeseries = dbc.Row([
                          {'label': 'Residence Size', 'value': 'residence_size'}
                      ],
                      value='price',
-                     clearable=False
-        ),
+                     clearable=False),
         html.Br(),
         html.P('Split by:'),
         dcc.RadioItems(id='timeseries_split_by',
@@ -126,9 +127,19 @@ tab_timeseries = dbc.Row([
                            {'label': 'Region', 'value': 'region'}
                        ],
                        value='none',
+                       labelStyle={'display': 'block'}),
+        html.Br(),
+        html.P('Resolution:'),
+        dcc.RadioItems(id='timeseries_resolution',
+                       options=[
+                           {'label': 'Year', 'value': 'year'},
+                           {'label': 'Quarter', 'value': 'quarter'},
+                           {'label': 'Month', 'value': 'month'}
+                       ],
+                       value='year',
                        labelStyle={'display': 'block'})
     ]),
-    dbc.Col(width=10 , children=[
+    dbc.Col(width=10, children=[
         dcc.Graph(id='timeseries')
     ])
 ])
@@ -199,24 +210,25 @@ def update_histogram(hist_dropdown, hist_range_slider, hist_checklist):
     Output('timeseries', 'figure'),
     [Input('timeseries_dropdown', 'value'),
      Input('timeseries_dropdown_calc', 'value'),
-     Input('timeseries_split_by', 'value')])
-def update_timeseries(timeseries_dropdown, timeseries_dropdown_calc, timeseries_split_by):
+     Input('timeseries_split_by', 'value'),
+     Input('timeseries_resolution', 'value')])
+def update_timeseries(timeseries_dropdown, timeseries_dropdown_calc, timeseries_split_by, timeseries_resolution):
     data_to_plot = prepare_data(data)
     ylabel = ' '.join(timeseries_dropdown.split('_')).title()
 
     if timeseries_split_by == 'none':
-        n_sales_per_year = data_to_plot.groupby('year').size().reset_index(name='count')
+        n_sales_per_time = data_to_plot.groupby(timeseries_resolution).size().reset_index(name='count')
 
         if timeseries_dropdown_calc == 'mean':
-            data_to_plot = data_to_plot.groupby('year')[timeseries_dropdown].mean().reset_index()
+            data_to_plot = data_to_plot.groupby(timeseries_resolution)[timeseries_dropdown].mean().reset_index()
         elif timeseries_dropdown_calc == 'median':
-            data_to_plot = data_to_plot.groupby('year')[timeseries_dropdown].median().reset_index()
+            data_to_plot = data_to_plot.groupby(timeseries_resolution)[timeseries_dropdown].median().reset_index()
 
         line_color = '#d62728'
-        line_plot = go.Scatter(x=data_to_plot['year'], y=data_to_plot[timeseries_dropdown], yaxis='y2', line_color=line_color)
+        line_plot = go.Scatter(x=data_to_plot[timeseries_resolution], y=data_to_plot[timeseries_dropdown], yaxis='y2', line_color=line_color)
         bar_color = '#1f77b4'
-        sales_per_year_plot = go.Bar(x=n_sales_per_year['year'], y=n_sales_per_year['count'], marker_color=bar_color)
-        fig = go.Figure(data=[sales_per_year_plot, line_plot],
+        sales_per_time_plot = go.Bar(x=n_sales_per_time[timeseries_resolution], y=n_sales_per_time['count'], marker_color=bar_color)
+        fig = go.Figure(data=[sales_per_time_plot, line_plot],
                         layout=go.Layout(
                              yaxis=dict(
                                  title='Number of sales',
@@ -235,15 +247,23 @@ def update_timeseries(timeseries_dropdown, timeseries_dropdown_calc, timeseries_
 
     else:
         if timeseries_dropdown_calc == 'mean':
-            data_to_plot = data_to_plot.groupby(['year', timeseries_split_by])[timeseries_dropdown].mean().reset_index()
+            data_to_plot = data_to_plot.groupby([timeseries_resolution, timeseries_split_by])[timeseries_dropdown].mean().reset_index()
         elif timeseries_dropdown_calc == 'median':
-            data_to_plot = data_to_plot.groupby(['year', timeseries_split_by])[timeseries_dropdown].median().reset_index()
+            data_to_plot = data_to_plot.groupby([timeseries_resolution, timeseries_split_by])[timeseries_dropdown].median().reset_index()
 
-        fig = px.line(data_to_plot, x='year', y=timeseries_dropdown, color=timeseries_split_by)\
-                .for_each_trace(lambda t: t.update(name=t.name.replace(timeseries_split_by + '=','')))
+        fig = px.line(data_to_plot, x=timeseries_resolution, y=timeseries_dropdown, color=timeseries_split_by)\
+                .for_each_trace(lambda t: t.update(name=t.name.replace(timeseries_split_by + '=', '')))
+        fig.update_layout(yaxis_title=ylabel)
+
+    print(timeseries_resolution)
+    print(data_to_plot)
 
     fig.update_layout(
-        xaxis_title='Year',
+        xaxis=dict(
+            tickmode='array',
+            tickvals=np.arange(1992, 2020),
+            ticktext=np.arange(1992, 2020)),
+        xaxis_title='Time',
         template='simple_white',
         uirevision=timeseries_dropdown)
 
