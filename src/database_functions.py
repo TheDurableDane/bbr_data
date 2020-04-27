@@ -41,5 +41,6 @@ def read_house_price_data(database_path):
     query = 'SELECT * FROM house_price_data;'
     house_price_data = select_from_database(database_path, query)
     house_price_data['sold_date'] = pd.to_datetime(house_price_data['sold_date']).dt.tz_convert('CET')
+    house_price_data['price_change'] = house_price_data['price_change'].astype(float)
 
     return house_price_data

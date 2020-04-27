@@ -22,6 +22,8 @@ def prepare_data(data):
     data['month'] = data['sold_date'].dt.month
     data['month'] = data['year'] + data['month']/10/1.2
     data = data.query('year >= 1992')
+    data = data.query('price_change <= 500')
+    data['price_change'] = data['price_change']/100
 
     conditions = [
         ((data['zip_code'].values >= 1000) & (data['zip_code'].values < 2000)),
@@ -44,6 +46,15 @@ def prepare_data(data):
     ]
     categories = ['Sjælland', 'Fyn', 'Jylland']
     data['region'] = np.select(conditions, categories, default='Unknown')
+
+    return data
+
+
+def prepare_histogram_data(data):
+    data['year'] = data['sold_date'].dt.year
+    data = data.query('year >= 1992')
+    data = data.query('price_change <= 20')
+    data = data.query('rooms < 60')
 
     return data
 
@@ -92,9 +103,26 @@ tab_histograms = dbc.Row([
 
 tab_geography = dbc.Row([
     dbc.Col(width={'size': 2}, children=[
-    ]),
+        html.Br(),
+        dcc.Dropdown(id='geo_dropdown',
+                     options=[
+                         {'label': 'Price', 'value': 'price'},
+                         {'label': 'Rooms', 'value': 'rooms'},
+                         {'label': 'Residence Size', 'value': 'residence_size'}
+                     ],
+                     value='price',
+                     clearable=False),
+        html.Br(),
+        html.P('Sold date'),
+        dcc.Slider(id='geo_year_slider',
+                   min=1992,
+                   max=2020,
+                   step=1,
+                   value=2020,
+                   included=False,
+                   tooltip={'always_visible': True, 'placement': 'bottom'})]),
     dbc.Col(width=10, children=[
-        html.P('Graphs and content.')
+        dcc.Graph(id='geo_map')
     ])
 ])
 
@@ -113,6 +141,7 @@ tab_timeseries = dbc.Row([
         dcc.Dropdown(id='timeseries_dropdown',
                      options=[
                          {'label': 'Price', 'value': 'price'},
+                         {'label': 'Price Change', 'value': 'price_change'},
                          {'label': 'Rooms', 'value': 'rooms'},
                          {'label': 'Residence Size', 'value': 'residence_size'}
                      ],
@@ -148,9 +177,9 @@ tab_timeseries = dbc.Row([
 app.layout = dbc.Row([
     dbc.Col(width={'size': 6, 'offset': 3}, children=[
         dbc.Tabs([
+            dbc.Tab(label='Geography', children=tab_geography),
             dbc.Tab(label='Time series', children=tab_timeseries),
             dbc.Tab(label='Histograms', children=tab_histograms),
-            dbc.Tab(label='Geography', children=tab_geography),
         ])
     ])
 ])
@@ -162,10 +191,10 @@ app.layout = dbc.Row([
      Input('hist_range_slider', 'value'),
      Input('hist_checklist', 'value')])
 def update_histogram(hist_dropdown, hist_range_slider, hist_checklist):
+    data_to_plot = prepare_histogram_data(data)
     slider_min = hist_range_slider[0]
     slider_max = hist_range_slider[1]
 
-    data_to_plot = data.copy()
     if 'sjaelland' not in hist_checklist:
         checklist_query = 'zip_code > 4999'
         data_to_plot = data_to_plot.query(checklist_query)
@@ -255,19 +284,29 @@ def update_timeseries(timeseries_dropdown, timeseries_dropdown_calc, timeseries_
                 .for_each_trace(lambda t: t.update(name=t.name.replace(timeseries_split_by + '=', '')))
         fig.update_layout(yaxis_title=ylabel)
 
-    print(timeseries_resolution)
-    print(data_to_plot)
-
     fig.update_layout(
         xaxis=dict(
             tickmode='array',
-            tickvals=np.arange(1992, 2020),
-            ticktext=np.arange(1992, 2020)),
+            tickvals=np.arange(1992, 2021),
+            ticktext=np.arange(1992, 2021)),
         xaxis_title='Time',
         template='simple_white',
         uirevision=timeseries_dropdown)
 
+    if timeseries_dropdown == 'price_change':
+        fig.update_layout(yaxis2_tickformat='%')
+
     return fig
+
+
+@app.callback(
+    Output('geo_map', 'figure'),
+    [Input('geo_dropdown', 'value'),
+     Input('geo_year_slider', 'value')])
+def update_map(geo_dropdown, geo_dropdown_calc, geo_year_slider):
+    pass
+
+# return fig
 
 
 if __name__ == '__main__':
